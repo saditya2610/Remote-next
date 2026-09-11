@@ -25,12 +25,19 @@ const VK = {
   'F7':118,'F8':119,'F9':120,'F10':121,'F11':122,'F12':123,
 };
 
-const RTC_CONFIG = {
-  iceServers: [
+// ─── WebRTC config (TURN-aware) ───────────────────────────────
+// TURN credentials can be injected via window.TURN_CONFIG for cross-network support
+function buildRTCConfig() {
+  const base = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-  ],
-};
+  ];
+  if (window.TURN_CONFIG && window.TURN_CONFIG.urls) {
+    base.push(window.TURN_CONFIG);
+  }
+  return { iceServers: base };
+}
+const RTC_CONFIG = buildRTCConfig();
 
 // ─── Send via DataChannel ────────────────────────────────────
 function sendInput(obj) {

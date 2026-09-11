@@ -8,6 +8,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "server": "node server.js",
     "build": "electron-builder --win portable",
     "build:installer": "electron-builder --win nsis",
     "build:all": "electron-builder --win nsis portable"
@@ -66,5 +67,8 @@
   },
   "dependencies": {
     "ws": "^8.21.3"
+  },
+  "allowScripts": {
+    "electron@32.3.3": true
   }
 }

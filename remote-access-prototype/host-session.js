@@ -33,12 +33,18 @@ const VK = {
 };
 
 // ─── WebRTC config ────────────────────────────────────────────
-const RTC_CONFIG = {
-  iceServers: [
+// TURN credentials can be injected via window.TURN_CONFIG for cross-network support
+function buildRTCConfig() {
+  const base = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-  ],
-};
+  ];
+  if (window.TURN_CONFIG && window.TURN_CONFIG.urls) {
+    base.push(window.TURN_CONFIG);
+  }
+  return { iceServers: base };
+}
+const RTC_CONFIG = buildRTCConfig();
 
 // ─── UI helpers ──────────────────────────────────────────────
 const el = id => document.getElementById(id);
