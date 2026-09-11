@@ -275,3 +275,71 @@ document.querySelectorAll('.win-icon').forEach(icon => {
 document.getElementById('winDesktop')?.addEventListener('click', () => {
   document.querySelectorAll('.win-icon').forEach(i => i.classList.remove('selected'));
 });
+
+// ─── Real WebRTC Connection ────────────────────────────────────
+function rtcConnect() {
+  const serverUrl = document.getElementById('rtcServerUrl').value.trim();
+  const hostId = document.getElementById('rtcHostId').value.trim().replace(/\s/g, '');
+  const password = document.getElementById('rtcPassword').value.trim();
+  const errorEl = document.getElementById('rtcError');
+
+  if (!serverUrl || !hostId || !password) {
+    errorEl.textContent = 'Semua field harus diisi';
+    errorEl.classList.remove('hidden');
+    return;
+  }
+
+  errorEl.classList.add('hidden');
+  const btn = document.getElementById('rtcConnectBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px;margin-right:8px;"></span> Menghubungkan...';
+
+  window.NexLinkRTC.connectRTC({
+    serverUrl,
+    hostId,
+    password,
+    onStatus: (status, msg) => {
+      console.log(`[RTC] Status: ${status} - ${msg}`);
+      if (status === 'connected') {
+        document.getElementById('rtcOverlay').style.display = 'none';
+        document.getElementById('winDesktop').style.display = 'none'; // hide fake desktop
+        const video = document.getElementById('remoteVideo');
+        video.style.display = 'block';
+        window.NexLinkRTC.attachVideoInputListeners(video);
+        window.NexLinkRTC.attachKeyboardListeners();
+        showShortcutToast('Terhubung ke Host');
+      } else if (status === 'disconnected') {
+        showDisconnect();
+      }
+    },
+    onStream: (stream) => {
+      const video = document.getElementById('remoteVideo');
+      video.srcObject = stream;
+    },
+    onStats: (stats) => {
+      if (stats.fps !== null) {
+        const fpsEl1 = document.getElementById('tbFPS');
+        const fpsEl2 = document.getElementById('sbFPS');
+        if (fpsEl1) fpsEl1.textContent = stats.fps;
+        if (fpsEl2) fpsEl2.textContent = stats.fps;
+      }
+      if (stats.latency !== null) {
+        const pingEl1 = document.getElementById('tbPing');
+        const pingEl2 = document.getElementById('sbPing');
+        if (pingEl1) pingEl1.textContent = stats.latency;
+        if (pingEl2) pingEl2.textContent = stats.latency + 'ms';
+      }
+    },
+    onError: (err) => {
+      errorEl.textContent = 'Error: ' + err;
+      errorEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.innerHTML = '🔗 Connect';
+    }
+  });
+}
+
+function skipRTC() {
+  document.getElementById('rtcOverlay').style.display = 'none';
+  showShortcutToast('Demo Mode Aktif');
+}
