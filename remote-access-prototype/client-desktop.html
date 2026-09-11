@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexLink — Desktop Client</title>
+  <meta name="description" content="NexLink Desktop Client: Kontrol PC remote dari laptop dengan resolusi penuh dan latensi rendah.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Desktop Client Specific ── */
+    html, body { height: 100%; overflow: hidden; }
+
+    .desktop-client {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #000;
+    }
+
+    /* ─ Top Toolbar ─ */
+    .client-toolbar {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100%);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(7, 11, 23, 0.95);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      padding: 6px 12px;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-card);
+      min-width: 700px;
+    }
+    .client-toolbar.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toolbar-trigger {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 120px;
+      height: 8px;
+      cursor: pointer;
+      z-index: 99;
+    }
+    .toolbar-trigger-tab {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(45,126,255,0.7);
+      border-radius: 0 0 6px 6px;
+      width: 80px;
+      height: 5px;
+      z-index: 101;
+      cursor: pointer;
+      transition: height 0.2s, background 0.2s;
+    }
+    .toolbar-trigger-tab:hover {
+      height: 8px;
+      background: var(--blue);
+    }
+
+    .toolbar-separator {
+      width: 1px;
+      height: 28px;
+      background: var(--glass-border);
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .toolbar-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 0 4px;
+    }
+
+    /* ─ Remote Screen ─ */
+    .screen-wrapper {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: none;
+    }
+    .screen-canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Simulated Windows Desktop */
+    .win-desktop {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: linear-gradient(135deg, #0d1b5e 0%, #1a0a4e 50%, #0a1a3a 100%);
+      overflow: hidden;
+      cursor: default;
+      user-select: none;
+    }
+
+    .win-desktop::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 60%, rgba(100,160,255,0.08), transparent),
+        radial-gradient(ellipse 40% 30% at 80% 20%, rgba(180,100,255,0.07), transparent);
+    }
+
+    /* Desktop wallpaper decorative elements */
+    .win-wallpaper-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(60px);
+      pointer-events: none;
+    }
+
+    /* Desktop Icons */
+    .win-icons {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      display: grid;
+      grid-template-rows: repeat(auto-fill, 72px);
+      gap: 4px;
+      padding: 4px;
+    }
+    .win-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 72px;
+      transition: background 0.15s;
+    }
+    .win-icon:hover { background: rgba(255,255,255,0.1); }
+    .win-icon.selected { background: rgba(0,120,215,0.4); }
+    .win-icon-img { font-size: 28px; }
+    .win-icon-label {
+      font-size: 11px;
+      color: #fff;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+
+    /* Simulated open window */
+    .win-window {
+      position: absolute;
+      top: 60px;
+      left: 120px;
+      width: 560px;
+      background: #1e1e2e;
+      border-radius: 10px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08);
+      overflow: hidden;
+      resize: both;
+    }
+    .win-titlebar {
+      height: 34px;
+      background: #2a2a3e;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+      cursor: move;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .win-btn { width: 12px; height: 12px; border-radius: 50%; border: none; cursor: pointer; }
+    .win-btn-close   { background: #ff5f57; }
+    .win-btn-min     { background: #febc2e; }
+    .win-btn-max     { background: #28c840; }
+    .win-title-text { flex: 1; text-align: center; font-size: 12px; color: rgba(255,255,255,0.5); }
+    .win-content {
+      padding: 0;
+      font-size: 13px;
+      height: 300px;
+      overflow: auto;
+    }
+
+    /* Fake VS Code */
+    .vscode-header {
+      background: #252526;
+      padding: 0 12px;
+      display: flex;
+      gap: 0;
+    }
+    .vscode-tab {
+      padding: 7px 16px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+    }
+    .vscode-tab.active {
+      color: #ccc;
+      border-bottom-color: #007acc;
+      background: #1e1e1e;
+    }
+    .vscode-editor {
+      background: #1e1e1e;
+      padding: 12px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      height: 100%;
+      overflow: auto;
+    }
+    .vscode-line { display: flex; gap: 16px; }
+    .line-num { color: #3a3a5a; min-width: 24px; text-align: right; user-select: none; }
+    .line-code { color: #ccc; }
+    .kw { color: #569cd6; }
+    .fn { color: #dcdcaa; }
+    .str { color: #ce9178; }
+    .cm { color: #6a9955; font-style: italic; }
+    .num { color: #b5cea8; }
+
+    /* Taskbar */
+    .win-taskbar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 40px;
+      background: rgba(20, 20, 35, 0.95);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      gap: 4px;
+      z-index: 10;
+    }
+    .taskbar-start {
+      width: 36px; height: 32px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .taskbar-start:hover { background: rgba(255,255,255,0.1); }
+    .taskbar-app {
+      height: 32px;
+      padding: 0 10px;
+      border-radius: 6px;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.7);
+      cursor: pointer;
+      transition: background 0.15s;
+      position: relative;
+    }
+    .taskbar-app:hover { background: rgba(255,255,255,0.08); }
+    .taskbar-app.active {
+      background: rgba(0,120,215,0.2);
+      border-bottom: 2px solid #0078d4;
+    }
+    .taskbar-app.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 18px; height: 2px;
+      background: #0078d4;
+      border-radius: 99px;
+    }
+    .taskbar-spacer { flex: 1; }
+    .taskbar-tray {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+      padding: 0 8px;
+    }
+    .taskbar-clock {
+      text-align: right;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Custom cursor */
+    .remote-cursor {
+      position: absolute;
+      width: 20px; height: 20px;
+      pointer-events: none;
+      z-index: 50;
+      transform: translate(-2px, -2px);
+      transition: opacity 0.2s;
+    }
+
+    /* Screen overlay for click feedback */
+    .click-ripple {
+      position: absolute;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 2px solid rgba(45,126,255,0.8);
+      pointer-events: none;
+      animation: click-ripple-anim 0.4s ease forwards;
+      transform: translate(-50%, -50%);
+      z-index: 60;
+    }
+    @keyframes click-ripple-anim {
+      from { transform: translate(-50%,-50%) scale(0.5); opacity: 1; }
+      to   { transform: translate(-50%,-50%) scale(2.5); opacity: 0; }
+    }
+
+    /* Monitor switcher */
+    .monitor-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: 6px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .monitor-btn:hover { background: var(--glass-hover); border-color: var(--glass-border); color: var(--text-primary); }
+    .monitor-btn.active { background: var(--blue-dim); border-color: rgba(45,126,255,0.4); color: var(--blue); }
+
+    /* Display mode dropdown */
+    .display-mode-select {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Bottom status bar */
+    .status-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 26px;
+      background: rgba(7,11,23,0.85);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 16px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      z-index: 90;
+    }
+    .status-bar-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--text-dim);
+    }
+    .status-bar-item .val { color: var(--text-secondary); font-weight: 600; }
+    .status-bar-item .val.good { color: var(--green); }
+    .status-bar-item .val.warn { color: var(--orange); }
+
+    /* Disconnect confirm overlay */
+    .confirm-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(7,11,23,0.85);
+      backdrop-filter: blur(16px);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .confirm-box {
+      background: var(--bg-elevated);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-xl);
+      padding: 36px;
+      text-align: center;
+      max-width: 380px;
+      box-shadow: var(--shadow-card);
+    }
+
+    /* Keyboard shortcut indicator */
+    .shortcut-toast {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(13,18,36,0.9);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: fade-in 0.2s ease;
+    }
+    .shortcut-key {
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="desktop-client">
+    <!-- Toolbar trigger tab -->
+    <div class="toolbar-trigger-tab" id="toolbarTrigger"
+      onmouseenter="showToolbar()" title="Hover untuk toolbar"></div>
+
+    <!-- Top Client Toolbar -->
+    <div class="client-toolbar" id="clientToolbar" onmouseleave="hideToolbar()">
+
+      <!-- Logo / ID -->
+      <div style="display:flex;align-items:center;gap:8px;padding-right:8px;">
+        <div style="font-size:16px;">⚡</div>
+        <div>
+          <div style="font-size:10px;font-weight:800;color:var(--text-primary);">NexLink</div>
+          <div style="font-size:9px;color:var(--text-dim);" id="toolbarConnectedID">487 293 156</div>
+        </div>
+      </div>
+
+      <div class="toolbar-separator"></div>
+
+      <!-- Monitor Select -->
+      <div class="toolbar-group">
+        <div class="toolbar-label">Monitor</div>
+        <button class="monitor-btn active" id="mon1Btn" onclick="switchMonitor(1)">
+          🖥️ 1
+        </button>
+        <button class="monitor-btn" id="mon2Btn" onclick="switchMonitor(2)">
+          🖥️ 2
+        </button>
+      </div>
+
+      <div class="toolbar-separator"></div>
+
+      <!-- Display Mode -->
+      <div class="toolbar-group">
+        <div class="toolbar-label">View</div>
+        <select class="display-mode-select" id="displayMode" onchange="changeDisplayMode(this.value)">
+          <option value="fit">Fit Screen</option>
+          <option value="original">1:1 Original</option>
+          <option value="stretched">Stretched</option>
+        </select>
+      </div>
+
+      <div class="toolbar-separator"></div>
+
+      <!-- Quick Actions -->
+      <div class="toolbar-group">
+        <button class="btn btn-ghost btn-icon" onclick="sendCtrlAltDel()" data-tooltip="Ctrl+Alt+Del">🔑</button>
+        <button class="btn btn-ghost btn-icon" onclick="toggleAudio(this)" id="audioBtn" data-tooltip="Audio">🔊</button>
+        <button class="btn btn-ghost btn-icon" onclick="takeScreenshot()" data-tooltip="Screenshot">📸</button>
+        <button class="btn btn-ghost btn-icon" onclick="toggleFullscreen()" data-tooltip="Fullscreen" id="fsBtn">⛶</button>
+      </div>
+
+      <div class="toolbar-separator"></div>
+
+      <!-- Stats -->
+      <div class="toolbar-group" style="gap:12px;">
+        <div style="font-size:10px;color:var(--text-dim);">
+          <span style="color:var(--green);font-weight:700;font-family:'JetBrains Mono',monospace;" id="tbFPS">60</span>fps
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);">
+          <span style="color:var(--cyan);font-weight:700;font-family:'JetBrains Mono',monospace;" id="tbPing">12</span>ms
+        </div>
+        <div style="font-size:10px;color:var(--text-dim);">
+          <span style="color:var(--purple);font-weight:700;font-family:'JetBrains Mono',monospace;" id="tbBitrate">7.8</span>Mb
+        </div>
+      </div>
+
+      <div class="toolbar-separator"></div>
+
+      <!-- Disconnect -->
+      <button class="btn btn-danger btn-sm" onclick="showDisconnect()">✕ Disconnect</button>
+    </div>
+
+    <!-- RTC Connect Overlay -->
+    <div id="rtcOverlay" style="
+      position:fixed;inset:0;z-index:400;
+      background:rgba(7,11,23,0.96);backdrop-filter:blur(20px);
+      display:flex;align-items:center;justify-content:center;
+    ">
+      <div style="background:var(--bg-elevated);border:1px solid var(--glass-border);border-radius:var(--radius-xl);padding:36px;max-width:420px;width:90%;box-shadow:var(--shadow-card);">
+        <div style="font-size:36px;text-align:center;margin-bottom:16px;">🔗</div>
+        <div class="text-xl font-bold mb-4" style="text-align:center;">Hubungkan ke Host</div>
+        <div class="text-sm text-secondary mb-20" style="text-align:center;">Masukkan info koneksi dari Host Dashboard</div>
+        <div class="flex flex-col gap-12">
+          <div class="input-group">
+            <label class="input-label">Server URL (IP Host)</label>
+            <input type="text" id="rtcServerUrl" class="input" value="ws://localhost:3000" placeholder="ws://192.168.x.x:3000">
+          </div>
+          <div class="input-group">
+            <label class="input-label">ID Perangkat Host</label>
+            <input type="text" id="rtcHostId" class="input input-id" placeholder="000 000 000" maxlength="11">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Password</label>
+            <input type="password" id="rtcPassword" class="input" placeholder="Masukkan password sesi">
+          </div>
+          <div id="rtcError" class="alert-banner alert-danger hidden"></div>
+          <button class="btn btn-primary btn-full btn-lg" id="rtcConnectBtn" onclick="rtcConnect()">
+            🔗 Connect
+          </button>
+          <button class="btn btn-ghost btn-sm" style="text-align:center;" onclick="skipRTC()">Demo Mode (tanpa koneksi nyata)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen Wrapper -->
+    <div class="screen-wrapper" id="screenWrapper"
+      onmousemove="moveCursor(event)"
+      onclick="clickEvent(event)"
+      oncontextmenu="rightClick(event)">
+
+      <!-- Real Video Stream (shown when RTC connected) -->
+      <video id="remoteVideo" autoplay playsinline muted
+        style="display:none;width:100%;height:100%;object-fit:contain;background:#000;position:absolute;inset:0;z-index:5;"
+      ></video>
+
+      <!-- Simulated Windows Desktop -->
+      <div class="win-desktop" id="winDesktop">
+
+        <!-- Wallpaper orbs -->
+        <div class="win-wallpaper-orb" style="width:600px;height:400px;top:-100px;right:-100px;background:radial-gradient(rgba(100,80,255,0.15),transparent);"></div>
+        <div class="win-wallpaper-orb" style="width:400px;height:300px;bottom:80px;left:-80px;background:radial-gradient(rgba(0,150,255,0.12),transparent);"></div>
+
+        <!-- Desktop Icons -->
+        <div class="win-icons">
+          <div class="win-icon" ondblclick="openExplorer()">
+            <div class="win-icon-img">📁</div>
+            <div class="win-icon-label">File Explorer</div>
+          </div>
+          <div class="win-icon" ondblclick="openBrowser()">
+            <div class="win-icon-img">🌐</div>
+            <div class="win-icon-label">Chrome</div>
+          </div>
+          <div class="win-icon selected" ondblclick="">
+            <div class="win-icon-img">💻</div>
+            <div class="win-icon-label">VS Code</div>
+          </div>
+          <div class="win-icon">
+            <div class="win-icon-img">⚙️</div>
+            <div class="win-icon-label">Settings</div>
+          </div>
+          <div class="win-icon">
+            <div class="win-icon-img">🗑️</div>
+            <div class="win-icon-label">Recycle Bin</div>
+          </div>
+        </div>
+
+        <!-- Simulated VS Code Window -->
+        <div class="win-window" id="vscodeWindow">
+          <div class="win-titlebar" id="vscodeTitle"
+            onmousedown="startDrag(event, 'vscodeWindow')">
+            <button class="win-btn win-btn-close" onclick="closeWindow('vscodeWindow')"></button>
+            <button class="win-btn win-btn-min"></button>
+            <button class="win-btn win-btn-max"></button>
+            <div class="win-title-text">main.js — NexLink Core — Visual Studio Code</div>
+          </div>
+          <div class="vscode-header">
+            <div class="vscode-tab active">main.js</div>
+            <div class="vscode-tab">webrtc.js</div>
+            <div class="vscode-tab">style.css</div>
+          </div>
+          <div class="win-content">
+            <div class="vscode-editor">
+              <div class="vscode-line"><span class="line-num">1</span><span class="line-code cm">// NexLink Core — WebRTC P2P Engine</span></div>
+              <div class="vscode-line"><span class="line-num">2</span><span class="line-code cm">// © 2026 NexLink Technologies</span></div>
+              <div class="vscode-line"><span class="line-num">3</span><span class="line-code"></span></div>
+              <div class="vscode-line"><span class="line-num">4</span><span class="line-code"><span class="kw">import</span> { WebRTCEngine } <span class="kw">from</span> <span class="str">'./webrtc'</span>;</span></div>
+              <div class="vscode-line"><span class="line-num">5</span><span class="line-code"><span class="kw">import</span> { ScreenCapture } <span class="kw">from</span> <span class="str">'./capture'</span>;</span></div>
+              <div class="vscode-line"><span class="line-num">6</span><span class="line-code"></span></div>
+              <div class="vscode-line"><span class="line-num">7</span><span class="line-code"><span class="kw">const</span> <span class="fn">createSession</span> = <span class="kw">async</span> (config) => {</span></div>
+              <div class="vscode-line"><span class="line-num">8</span><span class="line-code">&nbsp;&nbsp;<span class="kw">const</span> engine = <span class="kw">new</span> <span class="fn">WebRTCEngine</span>(config);</span></div>
+              <div class="vscode-line"><span class="line-num">9</span><span class="line-code">&nbsp;&nbsp;<span class="kw">const</span> capture = <span class="kw">new</span> <span class="fn">ScreenCapture</span>({</span></div>
+              <div class="vscode-line"><span class="line-num">10</span><span class="line-code">&nbsp;&nbsp;&nbsp;&nbsp;fps: <span class="num">60</span>,</span></div>
+              <div class="vscode-line"><span class="line-num">11</span><span class="line-code">&nbsp;&nbsp;&nbsp;&nbsp;codec: <span class="str">'H264'</span>,</span></div>
+              <div class="vscode-line"><span class="line-num">12</span><span class="line-code">&nbsp;&nbsp;&nbsp;&nbsp;bitrate: config.bitrate ?? <span class="num">8_000_000</span>,</span></div>
+              <div class="vscode-line"><span class="line-num">13</span><span class="line-code">&nbsp;&nbsp;});</span></div>
+              <div class="vscode-line"><span class="line-num">14</span><span class="line-code"></span></div>
+              <div class="vscode-line"><span class="line-num">15</span><span class="line-code">&nbsp;&nbsp;<span class="kw">await</span> engine.<span class="fn">connect</span>();</span></div>
+              <div class="vscode-line"><span class="line-num">16</span><span class="line-code">&nbsp;&nbsp;<span class="kw">return</span> { engine, capture };</span></div>
+              <div class="vscode-line"><span class="line-num">17</span><span class="line-code">};</span></div>
+              <div class="vscode-line"><span class="line-num">18</span><span class="line-code"></span></div>
+              <div class="vscode-line"><span class="line-num">19</span><span class="line-code"><span class="kw">export default</span> { <span class="fn">createSession</span> };</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Cursor -->
+        <div class="remote-cursor" id="remoteCursor">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M3 2L17 10L9.5 11.5L6 18L3 2Z" fill="white" stroke="rgba(0,0,0,0.8)" stroke-width="1"/>
+          </svg>
+        </div>
+
+        <!-- Taskbar -->
+        <div class="win-taskbar">
+          <div class="taskbar-start">⊞</div>
+          <div class="taskbar-app active" style="font-size:16px;">💻 <span style="font-size:11px;">VS Code</span></div>
+          <div class="taskbar-app" style="font-size:16px;">📁 <span style="font-size:11px;">Explorer</span></div>
+          <div class="taskbar-app" style="font-size:16px;">🌐 <span style="font-size:11px;">Chrome</span></div>
+          <div class="taskbar-spacer"></div>
+          <div class="taskbar-tray">
+            <span>🔊</span>
+            <span>📶</span>
+            <span>🔋</span>
+            <div class="taskbar-clock" id="taskbarClock">
+              <div>14:06</div>
+              <div style="font-size:9px;color:rgba(255,255,255,0.3);">11/09/2026</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+      <div class="status-bar-item">
+        <span class="dot dot-online" style="width:6px;height:6px;"></span>
+        <span id="sbHostName">Remote PC</span>
+      </div>
+      <div class="status-bar-item">FPS: <span class="val good" id="sbFPS">60</span></div>
+      <div class="status-bar-item">Ping: <span class="val good" id="sbPing">12ms</span></div>
+      <div class="status-bar-item">Bitrate: <span class="val" id="sbBitrate">7.8 Mbps</span></div>
+      <div class="status-bar-item">Codec: <span class="val">H.264</span></div>
+      <div class="status-bar-item">P2P: <span class="val good">Direct ✓</span></div>
+      <div style="flex:1;"></div>
+      <div class="status-bar-item" style="color:var(--text-dim);">Ctrl+Alt+F: Fullscreen &nbsp;·&nbsp; Ctrl+Alt+D: Disconnect</div>
+    </div>
+  </div>
+
+  <!-- Disconnect Confirm -->
+  <div id="disconnectOverlay" class="confirm-overlay hidden">
+    <div class="confirm-box fade-in">
+      <div style="font-size:48px;margin-bottom:16px;">🔌</div>
+      <div class="text-xl font-bold mb-8">Putus Koneksi?</div>
+      <div class="text-sm text-secondary mb-20">Sesi dengan <strong id="confirmTarget" style="color:var(--text-primary);">Remote PC</strong> akan diakhiri.</div>
+      <div class="flex gap-12" style="justify-content:center;">
+        <button class="btn btn-ghost" onclick="hideDisconnect()">Batal</button>
+        <button class="btn btn-danger" onclick="doDisconnect()">Ya, Putus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shortcut Toast -->
+  <div id="shortcutToast" class="shortcut-toast hidden"></div>
+
+  <script src="app.js"></script>
+  <script src="client-desktop-rtc.js"></script>
+  <script src="client-desktop.js"></script>
+  <script src="electron/titlebar.js"></script>
+</body>
+</html>

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: https://fonts.googleapis.com https://fonts.gstatic.com; img-src 'self' data:;">
+  <title>NexLink — Remote Access</title>
+  <meta name="description" content="NexLink: Akses PC kamu dari mana saja dengan koneksi P2P terenkripsi. Cepat, aman, gratis.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Landing Page Specific ── */
+    .landing-hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--blue-dim);
+      border: 1px solid rgba(45,126,255,0.3);
+      border-radius: 99px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--blue);
+      margin-bottom: 28px;
+      animation: fade-in 0.5s ease both;
+    }
+
+    .hero-title {
+      font-size: clamp(36px, 6vw, 68px);
+      font-weight: 900;
+      line-height: 1.1;
+      text-align: center;
+      letter-spacing: -0.03em;
+      max-width: 780px;
+      animation: fade-in 0.5s 0.1s ease both;
+    }
+    .hero-title .highlight {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--cyan) 60%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: clamp(15px, 2vw, 18px);
+      color: var(--text-secondary);
+      text-align: center;
+      max-width: 520px;
+      margin-top: 16px;
+      line-height: 1.7;
+      animation: fade-in 0.5s 0.2s ease both;
+    }
+
+    .connect-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      width: 100%;
+      max-width: 820px;
+      margin-top: 48px;
+      animation: fade-in 0.5s 0.3s ease both;
+    }
+
+    @media (max-width: 640px) {
+      .connect-panel { grid-template-columns: 1fr; }
+    }
+
+    .connect-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(24px);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.25s, transform 0.25s;
+    }
+    .connect-card:hover {
+      border-color: rgba(255,255,255,0.12);
+      transform: translateY(-2px);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .card-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .card-icon-blue {
+      background: var(--blue-dim);
+      border: 1px solid rgba(45,126,255,0.25);
+    }
+    .card-icon-cyan {
+      background: rgba(0,212,255,0.1);
+      border: 1px solid rgba(0,212,255,0.25);
+    }
+    .card-title { font-size: 16px; font-weight: 700; }
+    .card-desc  { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+    .id-input-wrapper {
+      position: relative;
+    }
+    .id-input-wrapper .input {
+      padding-right: 52px;
+      font-size: 18px;
+      letter-spacing: 0.15em;
+    }
+    .id-clear-btn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      transition: color var(--transition);
+    }
+    .id-clear-btn:hover { color: var(--text-secondary); }
+
+    .recent-connections {
+      width: 100%;
+      max-width: 820px;
+      margin-top: 16px;
+      animation: fade-in 0.5s 0.4s ease both;
+    }
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+    .recent-item:hover { background: var(--glass-hover); }
+    .recent-item-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: var(--blue-dim);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0;
+    }
+    .recent-item-info { flex: 1; }
+    .recent-item-name { font-size: 13px; font-weight: 600; }
+    .recent-item-meta { font-size: 11px; color: var(--text-dim); margin-top: 1px; }
+    .recent-item-badge { font-size: 11px; font-weight: 600; }
+
+    /* Connecting overlay */
+    .connecting-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(7, 11, 23, 0.92);
+      backdrop-filter: blur(16px);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+
+    .connecting-ring {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: 3px solid var(--glass-border);
+      border-top-color: var(--blue);
+      border-right-color: var(--cyan);
+      animation: rotate 1.2s linear infinite;
+      position: relative;
+    }
+    .connecting-ring::after {
+      content: '🔗';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      animation: rotate 1.2s linear infinite reverse;
+    }
+
+    .connecting-stage {
+      font-size: 14px;
+      color: var(--text-secondary);
+      min-height: 20px;
+      text-align: center;
+    }
+
+    .connecting-progress {
+      width: 280px;
+      height: 3px;
+      background: var(--glass-border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .connecting-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* Navbar */
+    .landing-nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      background: rgba(7,11,23,0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-border);
+      z-index: 50;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .nav-link {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: color var(--transition);
+      cursor: pointer;
+    }
+    .nav-link:hover { color: var(--text-primary); }
+
+    .features-strip {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+      animation: fade-in 0.5s 0.5s ease both;
+    }
+    .feature-chip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+    .feature-chip .chip-icon {
+      font-size: 14px;
+      color: var(--blue);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  <div class="bg-grid"></div>
+
+  <!-- Navbar -->
+  <nav class="landing-nav">
+    <a href="index.html" class="logo">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo-text">NexLink</div>
+        <div class="logo-sub">Remote Access</div>
+      </div>
+    </a>
+    <div class="nav-links">
+      <span class="nav-link">Features</span>
+      <span class="nav-link">Security</span>
+      <span class="nav-link">Pricing</span>
+      <a href="host.html" class="btn btn-ghost btn-sm">🖥️ Open Host</a>
+    </div>
+  </nav>
+
+  <!-- Main Landing -->
+  <div class="landing-hero">
+    <div class="hero-badge">
+      🔐 &nbsp;End-to-end Encrypted · DTLS-SRTP · P2P WebRTC
+    </div>
+
+    <h1 class="hero-title">
+      Remote Access<br>that feels <span class="highlight">lightning fast</span>
+    </h1>
+
+    <p class="hero-sub">
+      Kontrol PC kamu dari laptop atau smartphone dengan latensi ultra-rendah.
+      Koneksi P2P langsung, tanpa server perantara.
+    </p>
+
+    <!-- Feature chips -->
+    <div class="features-strip">
+      <div class="feature-chip"><span class="chip-icon">⚡</span> &lt;15ms Latency</div>
+      <div class="feature-chip"><span class="chip-icon">📹</span> 60 FPS Stream</div>
+      <div class="feature-chip"><span class="chip-icon">🔒</span> AES-256 Encrypted</div>
+      <div class="feature-chip"><span class="chip-icon">📱</span> Mobile Ready</div>
+      <div class="feature-chip"><span class="chip-icon">🌐</span> Cross-Platform</div>
+    </div>
+
+    <!-- Connect Panel -->
+    <div class="connect-panel">
+
+      <!-- Card 1: Control Remote -->
+      <div class="connect-card">
+        <div class="card-header">
+          <div class="card-icon card-icon-blue">🖥️</div>
+          <div>
+            <div class="card-title">Kontrol Perangkat</div>
+            <div class="card-desc">Masukkan ID dan sambungkan ke PC remote</div>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">ID Perangkat Remote</label>
+          <div class="id-input-wrapper">
+            <input
+              type="text"
+              id="remoteIdInput"
+              class="input input-id"
+              placeholder="000 000 000"
+              maxlength="11"
+              autocomplete="off"
+              spellcheck="false"
+            >
+            <button class="id-clear-btn" onclick="clearIdInput()" title="Clear">✕</button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Password (opsional)</label>
+          <input
+            type="password"
+            id="sessionPasswordInput"
+            class="input"
+            placeholder="Masukkan password sesi"
+          >
+        </div>
+
+        <div id="connectStatus" class="hidden"></div>
+
+        <button id="connectBtn" class="btn btn-primary btn-full btn-lg" onclick="startConnect()">
+          🔗 &nbsp;Connect
+        </button>
+
+        <div class="flex items-center gap-8" style="justify-content: center;">
+          <span class="text-xs text-dim">Tidak punya ID?</span>
+          <button class="btn btn-ghost btn-sm" onclick="demoConnect()">🎯 Demo Connect</button>
+        </div>
+      </div>
+
+      <!-- Card 2: Allow Control -->
+      <div class="connect-card">
+        <div class="card-header">
+          <div class="card-icon card-icon-cyan">📡</div>
+          <div>
+            <div class="card-title">Izinkan Kontrol</div>
+            <div class="card-desc">Buka PC ini sebagai Host untuk dikontrol</div>
+          </div>
+        </div>
+
+        <div style="text-align:center; padding: 8px 0;">
+          <div class="section-label mb-8">ID Perangkat Kamu</div>
+          <div class="id-display" id="myIDDisplay" style="font-size:26px; letter-spacing:0.18em;">
+            487 293 156
+          </div>
+          <div class="flex items-center justify-center gap-8 mt-12">
+            <div class="badge badge-online">
+              <span class="dot dot-online"></span>
+              Online
+            </div>
+            <button
+              class="btn btn-ghost btn-sm"
+              onclick="copyToClipboard('487293156', this)"
+            >📋 Copy ID</button>
+          </div>
+        </div>
+
+        <div class="divider" style="margin: 8px 0;"></div>
+
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-secondary">Status penerimaan</span>
+          <div class="flex items-center gap-8">
+            <span class="text-sm text-dim" id="acceptLabel">Hanya dengan izin</span>
+            <label class="toggle">
+              <input type="checkbox" id="acceptToggle" checked onchange="toggleAccept(this)">
+              <div class="toggle-slider"></div>
+            </label>
+          </div>
+        </div>
+
+        <a href="host.html" class="btn btn-cyan btn-full btn-lg">
+          🛡️ &nbsp;Buka Host Dashboard
+        </a>
+      </div>
+    </div>
+
+    <!-- Recent Connections -->
+    <div class="recent-connections">
+      <div class="section-label" style="text-align:center; margin-bottom:8px;">Koneksi Terakhir</div>
+      <div class="glass" style="border-radius: var(--radius-lg); overflow:hidden; padding: 4px;">
+        <div class="recent-item" onclick="quickConnect('My Home PC', '487 293 156')">
+          <div class="recent-item-icon">🏠</div>
+          <div class="recent-item-info">
+            <div class="recent-item-name">My Home PC</div>
+            <div class="recent-item-meta">487 293 156 · 2 jam yang lalu</div>
+          </div>
+          <span class="badge badge-online" style="font-size:10px;">
+            <span class="dot dot-online"></span> Online
+          </span>
+        </div>
+        <div class="recent-item" onclick="quickConnect('Office Workstation', '312 847 091')">
+          <div class="recent-item-icon">🏢</div>
+          <div class="recent-item-info">
+            <div class="recent-item-name">Office Workstation</div>
+            <div class="recent-item-meta">312 847 091 · Kemarin, 18:30</div>
+          </div>
+          <span class="badge badge-offline" style="font-size:10px;">
+            <span class="dot dot-offline"></span> Offline
+          </span>
+        </div>
+        <div class="recent-item" onclick="quickConnect('Gaming Rig', '905 614 228')">
+          <div class="recent-item-icon">🎮</div>
+          <div class="recent-item-info">
+            <div class="recent-item-name">Gaming Rig</div>
+            <div class="recent-item-meta">905 614 228 · 3 hari yang lalu</div>
+          </div>
+          <span class="badge badge-offline" style="font-size:10px;">
+            <span class="dot dot-offline"></span> Offline
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connecting Overlay -->
+  <div id="connectingOverlay" class="connecting-overlay hidden">
+    <div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:20px;">
+      <div class="connecting-ring"></div>
+      <div>
+        <div class="text-xl font-bold mb-4" id="connectingTitle">Menghubungkan…</div>
+        <div class="text-sm text-secondary" id="connectingTarget">ke 487 293 156</div>
+      </div>
+      <div class="connecting-progress">
+        <div class="connecting-progress-fill" id="connectingProgressFill" style="width:0%"></div>
+      </div>
+      <div class="connecting-stage" id="connectingStage">Memulai koneksi…</div>
+      <button class="btn btn-ghost btn-sm" onclick="cancelConnect()">Batalkan</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    const { formatIDInput, simulateConnect, copyToClipboard } = window.NexLink;
+
+    // ── ID Input Formatting ──────────────────────────────────
+    const remoteIdInput = document.getElementById('remoteIdInput');
+    remoteIdInput.addEventListener('input', () => formatIDInput(remoteIdInput));
+
+    function clearIdInput() {
+      remoteIdInput.value = '';
+      remoteIdInput.focus();
+    }
+
+    // ── Toggle Accept ────────────────────────────────────────
+    function toggleAccept(checkbox) {
+      const label = document.getElementById('acceptLabel');
+      label.textContent = checkbox.checked ? 'Hanya dengan izin' : 'Nonaktif';
+    }
+
+    // ── Quick Connect ────────────────────────────────────────
+    function quickConnect(name, id) {
+      remoteIdInput.value = id;
+      startConnect(name);
+    }
+
+    // ── Demo Connect ─────────────────────────────────────────
+    function demoConnect() {
+      window.NexLink.typeText(remoteIdInput, '487 29', 100);
+      setTimeout(() => {
+        remoteIdInput.value = '487 293 156';
+        setTimeout(startConnect, 400);
+      }, 900);
+    }
+
+    // ── Start Connect ────────────────────────────────────────
+    function startConnect(name) {
+      const id = remoteIdInput.value.trim();
+      if (!id || id.replace(/\s/g,'').length < 7) {
+        showConnectStatus('Masukkan ID perangkat yang valid (9 digit)', 'alert-warning');
+        remoteIdInput.focus();
+        return;
+      }
+
+      const overlay = document.getElementById('connectingOverlay');
+      const title   = document.getElementById('connectingTitle');
+      const target  = document.getElementById('connectingTarget');
+      const stage   = document.getElementById('connectingStage');
+      const progFill= document.getElementById('connectingProgressFill');
+
+      title.textContent  = name ? `Menghubungkan ke ${name}…` : 'Menghubungkan…';
+      target.textContent = `ID: ${id}`;
+      progFill.style.width = '0%';
+      overlay.classList.remove('hidden');
+
+      simulateConnect(
+        (msg, i, total) => {
+          stage.textContent = msg;
+          progFill.style.width = `${Math.round((i+1)/total * 100)}%`;
+        },
+        () => {
+          // Redirect to desktop client view
+          setTimeout(() => {
+            window.location.href = 'client-desktop.html?id=' + encodeURIComponent(id) + '&name=' + encodeURIComponent(name || 'Remote PC');
+          }, 400);
+        }
+      );
+    }
+
+    // ── Cancel Connect ───────────────────────────────────────
+    function cancelConnect() {
+      document.getElementById('connectingOverlay').classList.add('hidden');
+    }
+
+    // ── Show Status ──────────────────────────────────────────
+    function showConnectStatus(msg, cls) {
+      const el = document.getElementById('connectStatus');
+      el.className = `alert-banner ${cls}`;
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    // ── ESC to cancel ────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') cancelConnect();
+      if (e.key === 'Enter' && document.activeElement === remoteIdInput) startConnect();
+    });
+  </script>
+  <script src="electron/titlebar.js"></script>
+</body>
+</html>

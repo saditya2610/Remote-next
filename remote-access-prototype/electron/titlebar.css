@@ -1,0 +1,71 @@
+/* ============================================================
+   electron/titlebar.css — Custom Frameless Title Bar
+   ============================================================ */
+
+.electron-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  background: rgba(4, 7, 15, 0.98);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  -webkit-app-region: drag; /* Make draggable */
+  flex-shrink: 0;
+  padding: 0 12px 0 16px;
+  position: relative;
+  z-index: 1000;
+  user-select: none;
+}
+
+.electron-titlebar .tb-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: drag;
+}
+
+.electron-titlebar .tb-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+  -webkit-app-region: drag;
+}
+
+.electron-titlebar .tb-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  -webkit-app-region: no-drag;
+}
+
+.tb-btn {
+  width: 32px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  transition: all 0.15s;
+  -webkit-app-region: no-drag;
+}
+.tb-btn:hover { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.8); }
+.tb-btn-close:hover  { background: #c0392b; color: #fff; }
+
+.tb-logo-icon {
+  width: 22px; height: 22px;
+  background: linear-gradient(135deg, #2D7EFF, #00D4FF);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+}
+
+/* Hide titlebar when not in Electron */
+.electron-titlebar { display: none; }
+body.is-electron .electron-titlebar { display: flex; }
+body.is-electron .navbar { top: 38px; }
+body.is-electron .landing-nav { top: 38px; }

@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexLink — Host Dashboard</title>
+  <meta name="description" content="NexLink Host Dashboard: Kelola sesi remote, whitelist, dan keamanan perangkat host.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Host Dashboard Specific ── */
+    .page { display: flex; flex-direction: column; }
+
+    /* ID Card Glow */
+    .my-id-card {
+      background: linear-gradient(135deg, rgba(45,126,255,0.08) 0%, rgba(0,212,255,0.05) 100%);
+      border: 1px solid rgba(45,126,255,0.25);
+      border-radius: var(--radius-xl);
+      padding: 28px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .my-id-card::before {
+      content: '';
+      position: absolute;
+      top: -40px; left: 50%;
+      transform: translateX(-50%);
+      width: 200px; height: 120px;
+      background: radial-gradient(ellipse, rgba(45,126,255,0.15), transparent);
+      pointer-events: none;
+    }
+
+    .id-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      color: var(--text-primary);
+      margin: 12px 0;
+    }
+
+    /* Password Card */
+    .password-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .password-field {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      color: var(--text-primary);
+    }
+
+    /* Session Banner */
+    .session-banner {
+      background: linear-gradient(135deg, rgba(0,232,122,0.1), rgba(45,126,255,0.08));
+      border: 1px solid rgba(0,232,122,0.25);
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      animation: slide-in-down 0.4s ease;
+    }
+    .session-avatar {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      box-shadow: 0 0 16px var(--blue-glow);
+    }
+
+    /* Whitelist */
+    .whitelist-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      transition: background var(--transition);
+    }
+    .whitelist-item:hover { background: var(--glass-hover); }
+    .whitelist-icon {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+
+    /* Log items */
+    .log-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--glass-border);
+      font-size: 13px;
+    }
+    .log-item:last-child { border-bottom: none; }
+    .log-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .stat-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 28px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* Quality slider */
+    .quality-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.08);
+      outline: none;
+      cursor: pointer;
+    }
+    .quality-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 10px var(--blue-glow);
+      cursor: pointer;
+      transition: transform var(--transition);
+    }
+    .quality-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+    /* Security lock icon pulse when receiving connection */
+    @keyframes lock-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,232,122,0.4); }
+      50%       { box-shadow: 0 0 0 12px rgba(0,232,122,0); }
+    }
+    .lock-pulse { animation: lock-pulse 2s ease-in-out infinite; }
+
+    /* Content area */
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+    }
+    @media (max-width: 1024px) {
+      .content-grid { grid-template-columns: 1fr; }
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .page-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  <div class="bg-grid"></div>
+  <div class="page">
+
+    <!-- Navbar -->
+    <nav class="navbar">
+      <a href="index.html" class="logo">
+        <div class="logo-icon">⚡</div>
+        <div>
+          <div class="logo-text">NexLink</div>
+          <div class="logo-sub">Host Mode</div>
+        </div>
+      </a>
+      <div class="flex items-center gap-12">
+        <div class="badge badge-online">
+          <span class="dot dot-online"></span> Host Online
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="location.href='index.html'">⬅ Connect Page</button>
+      </div>
+    </nav>
+
+    <div class="sidebar-layout">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <span class="sidebar-section-label">Host</span>
+        <button class="sidebar-item active" onclick="showSection('dashboard')">
+          <span class="item-icon">🏠</span> Dashboard
+        </button>
+        <button class="sidebar-item" onclick="showSection('security')">
+          <span class="item-icon">🔒</span> Keamanan
+        </button>
+        <button class="sidebar-item" onclick="showSection('whitelist')">
+          <span class="item-icon">📋</span> Whitelist
+        </button>
+        <button class="sidebar-item" onclick="showSection('log')">
+          <span class="item-icon">📜</span> Log Sesi
+        </button>
+        <span class="sidebar-section-label">Pengaturan</span>
+        <button class="sidebar-item" onclick="showSection('quality')">
+          <span class="item-icon">🎛️</span> Kualitas Stream
+        </button>
+        <button class="sidebar-item" onclick="showSection('audio')">
+          <span class="item-icon">🔊</span> Audio
+        </button>
+        <div style="flex:1;"></div>
+        <button class="sidebar-item" style="color:var(--red)" onclick="alert('Host stopped. Returning to connect page.')">
+          <span class="item-icon">⏹️</span> Stop Host
+        </button>
+      </aside>
+
+      <!-- Main -->
+      <main class="main-content">
+        <!-- ─ Active Session Banner ─ -->
+        <div id="activeBanner" class="session-banner mb-20 fade-in">
+          <div class="session-avatar">📱</div>
+          <div style="flex:1;">
+            <div class="font-bold" style="font-size:14px;">Sesi Aktif — Galaxy S25 Ultra</div>
+            <div class="text-sm text-secondary mt-4">Terhubung 00:04:32 &nbsp;·&nbsp; 12 ms latency &nbsp;·&nbsp; 60 FPS</div>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="disconnectSession()">Putus Sekarang</button>
+        </div>
+
+        <div class="content-grid">
+          <!-- LEFT COLUMN -->
+          <div class="flex flex-col gap-20">
+
+            <!-- My Address Card -->
+            <section id="dashboardSection">
+              <div class="page-title">Host Dashboard</div>
+              <div class="page-subtitle">Perangkat ini siap menerima koneksi remote</div>
+
+              <div class="my-id-card mt-20">
+                <div class="section-label">ID Perangkat Kamu</div>
+                <div class="id-number" id="hostID">487 293 156</div>
+                <div class="flex items-center justify-center gap-12 mt-12">
+                  <div class="badge badge-online">
+                    <span class="dot dot-online"></span> Online & Siap
+                  </div>
+                  <button class="btn btn-ghost btn-sm" onclick="copyHostID(this)">📋 Salin ID</button>
+                  <button class="btn btn-ghost btn-sm" onclick="refreshID()">🔄 Regenerate</button>
+                </div>
+              </div>
+
+              <!-- Password -->
+              <div class="glass-card mt-20">
+                <div class="flex items-center justify-between mb-16">
+                  <div>
+                    <div class="font-semibold">Password Sesi</div>
+                    <div class="text-xs text-secondary mt-4">Dibutuhkan saat klien pertama kali terhubung</div>
+                  </div>
+                  <div class="pill-control">
+                    <button class="pill-btn active" id="pwModeTemp" onclick="setPwMode('temp', this)">Sekali Pakai</button>
+                    <button class="pill-btn" id="pwModePerm" onclick="setPwMode('perm', this)">Permanen</button>
+                  </div>
+                </div>
+                <div class="password-row">
+                  <div class="password-field" id="pwDisplay">nx-4Hm8pQ2r</div>
+                  <button class="btn btn-ghost btn-icon-lg" id="pwCopyBtn"
+                    onclick="copyToClipboard(document.getElementById('pwDisplay').textContent, this)"
+                    data-tooltip="Salin Password">📋</button>
+                  <button class="btn btn-ghost btn-icon-lg" onclick="regeneratePassword()"
+                    data-tooltip="Buat Password Baru">🔄</button>
+                  <button class="btn btn-ghost btn-icon-lg" onclick="togglePwVisibility(this)"
+                    data-tooltip="Sembunyikan" id="pwVisBtn">👁️</button>
+                </div>
+                <div class="text-xs text-dim mt-8" id="pwModeLabel">
+                  ✓ Password akan berubah otomatis setelah sesi berakhir
+                </div>
+              </div>
+
+              <!-- Stats Grid -->
+              <div class="stats-grid mt-20">
+                <div class="stat-card fade-in fade-in-delay-1">
+                  <div class="stat-number text-blue" id="statUptime">04:32</div>
+                  <div class="stat-label">Durasi Sesi</div>
+                </div>
+                <div class="stat-card fade-in fade-in-delay-2">
+                  <div class="stat-number text-green" id="statFPS">60</div>
+                  <div class="stat-label">FPS Stream</div>
+                </div>
+                <div class="stat-card fade-in fade-in-delay-2">
+                  <div class="stat-number text-cyan" id="statLatency">12</div>
+                  <div class="stat-label">Latency (ms)</div>
+                </div>
+                <div class="stat-card fade-in fade-in-delay-3">
+                  <div class="stat-number" id="statBitrate" style="color:var(--purple);">7.8</div>
+                  <div class="stat-label">Bitrate (Mbps)</div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Security Section -->
+            <section class="glass-card" id="securitySection">
+              <div class="flex items-center gap-12 mb-16">
+                <div style="width:36px;height:36px;border-radius:9px;background:var(--green-dim);display:flex;align-items:center;justify-content:center;font-size:16px;" class="lock-pulse">🔒</div>
+                <div>
+                  <div class="font-bold">Keamanan Sesi</div>
+                  <div class="text-xs text-secondary mt-2">DTLS-SRTP · AES-256 · End-to-End Encrypted</div>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-12">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-sm font-semibold">Require password</div>
+                    <div class="text-xs text-dim">Klien harus memasukkan password sebelum masuk</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" checked>
+                    <div class="toggle-slider"></div>
+                  </label>
+                </div>
+                <div class="divider" style="margin:4px 0;"></div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-sm font-semibold">Lock keyboard & mouse saat sesi aktif</div>
+                    <div class="text-xs text-dim">Mencegah akses fisik ke host selama remote</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox">
+                    <div class="toggle-slider"></div>
+                  </label>
+                </div>
+                <div class="divider" style="margin:4px 0;"></div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-sm font-semibold">2FA Authentication</div>
+                    <div class="text-xs text-dim">Konfirmasi manual di layar host setiap kali ada koneksi</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" checked>
+                    <div class="toggle-slider"></div>
+                  </label>
+                </div>
+                <div class="divider" style="margin:4px 0;"></div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-sm font-semibold">Session Alert Banner</div>
+                    <div class="text-xs text-dim">Tampilkan notifikasi saat ada klien baru terhubung</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" checked>
+                    <div class="toggle-slider"></div>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            <!-- Quality Section -->
+            <section class="glass-card" id="qualitySection">
+              <div class="font-bold mb-16">Kualitas Stream</div>
+              <div class="flex flex-col gap-20">
+                <div>
+                  <div class="flex items-center justify-between mb-8">
+                    <span class="text-sm font-semibold">Frame Rate</span>
+                    <span class="text-sm font-mono text-blue" id="fpsLabel">60 FPS</span>
+                  </div>
+                  <input type="range" class="quality-slider" min="15" max="60" value="60" step="5"
+                    oninput="updateQualitySetting('fps', this.value)">
+                  <div class="flex justify-between mt-4">
+                    <span class="text-xs text-dim">15 FPS</span>
+                    <span class="text-xs text-dim">60 FPS</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-8">
+                    <span class="text-sm font-semibold">Video Bitrate</span>
+                    <span class="text-sm font-mono text-cyan" id="bitrateLabel">8 Mbps</span>
+                  </div>
+                  <input type="range" class="quality-slider" min="1" max="20" value="8"
+                    oninput="updateQualitySetting('bitrate', this.value)">
+                  <div class="flex justify-between mt-4">
+                    <span class="text-xs text-dim">1 Mbps</span>
+                    <span class="text-xs text-dim">20 Mbps</span>
+                  </div>
+                </div>
+                <div>
+                  <div class="flex items-center justify-between mb-8">
+                    <span class="text-sm font-semibold">Codec</span>
+                  </div>
+                  <div class="pill-control" style="max-width:300px;">
+                    <button class="pill-btn active" onclick="setCodec('H.264', this)">H.264</button>
+                    <button class="pill-btn" onclick="setCodec('H.265', this)">H.265/HEVC</button>
+                    <button class="pill-btn" onclick="setCodec('AV1', this)">AV1</button>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between">
+                  <div>
+                    <div class="text-sm font-semibold">Hardware Encoding</div>
+                    <div class="text-xs text-dim">GPU: NVIDIA RTX 4070 (NVENC)</div>
+                  </div>
+                  <label class="toggle">
+                    <input type="checkbox" checked>
+                    <div class="toggle-slider"></div>
+                  </label>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- RIGHT COLUMN -->
+          <div class="flex flex-col gap-20">
+
+            <!-- Whitelist -->
+            <div class="glass-card">
+              <div class="flex items-center justify-between mb-16">
+                <div class="font-bold">Whitelist Perangkat</div>
+                <button class="btn btn-ghost btn-sm" onclick="addWhitelistDevice()">+ Tambah</button>
+              </div>
+              <div id="whitelistContainer">
+                <div class="whitelist-item">
+                  <div class="whitelist-icon" style="background:var(--blue-dim);font-size:18px;">💻</div>
+                  <div style="flex:1;">
+                    <div class="text-sm font-semibold">Laptop Kerja</div>
+                    <div class="text-xs text-dim font-mono">ID: 312 847 091</div>
+                  </div>
+                  <div class="badge badge-online"><span class="dot dot-online"></span></div>
+                  <button class="btn btn-ghost btn-icon" onclick="removeWhitelist(this)" style="font-size:14px;color:var(--text-dim);">✕</button>
+                </div>
+                <div class="whitelist-item">
+                  <div class="whitelist-icon" style="background:rgba(0,212,255,0.1);font-size:18px;">📱</div>
+                  <div style="flex:1;">
+                    <div class="text-sm font-semibold">Galaxy S25 Ultra</div>
+                    <div class="text-xs text-dim font-mono">ID: 905 614 228</div>
+                  </div>
+                  <div class="badge badge-online"><span class="dot dot-online"></span></div>
+                  <button class="btn btn-ghost btn-icon" onclick="removeWhitelist(this)" style="font-size:14px;color:var(--text-dim);">✕</button>
+                </div>
+                <div class="whitelist-item">
+                  <div class="whitelist-icon" style="background:rgba(123,94,255,0.1);font-size:18px;">📱</div>
+                  <div style="flex:1;">
+                    <div class="text-sm font-semibold">iPhone 16 Pro</div>
+                    <div class="text-xs text-dim font-mono">ID: 774 320 889</div>
+                  </div>
+                  <div class="badge badge-offline"><span class="dot dot-offline"></span></div>
+                  <button class="btn btn-ghost btn-icon" onclick="removeWhitelist(this)" style="font-size:14px;color:var(--text-dim);">✕</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Session Log -->
+            <div class="glass-card">
+              <div class="flex items-center justify-between mb-16">
+                <div class="font-bold">Log Sesi</div>
+                <button class="btn btn-ghost btn-sm" onclick="clearLog()">Hapus Log</button>
+              </div>
+              <div id="logContainer">
+                <div class="log-item">
+                  <div class="log-dot" style="background:var(--green);"></div>
+                  <div>
+                    <div class="text-sm font-semibold">Galaxy S25 Ultra terhubung</div>
+                    <div class="text-xs text-dim">Hari ini 14:01 · Mobile Client · 4G LTE</div>
+                  </div>
+                </div>
+                <div class="log-item">
+                  <div class="log-dot" style="background:var(--red);"></div>
+                  <div>
+                    <div class="text-sm font-semibold">Galaxy S25 Ultra terputus</div>
+                    <div class="text-xs text-dim">Hari ini 13:55 · Durasi: 12m 30s</div>
+                  </div>
+                </div>
+                <div class="log-item">
+                  <div class="log-dot" style="background:var(--blue);"></div>
+                  <div>
+                    <div class="text-sm font-semibold">Laptop Kerja terhubung</div>
+                    <div class="text-xs text-dim">Hari ini 11:20 · Desktop Client · WiFi</div>
+                  </div>
+                </div>
+                <div class="log-item">
+                  <div class="log-dot" style="background:var(--red);"></div>
+                  <div>
+                    <div class="text-sm font-semibold">Laptop Kerja terputus</div>
+                    <div class="text-xs text-dim">Hari ini 10:05 · Durasi: 1h 15m</div>
+                  </div>
+                </div>
+                <div class="log-item">
+                  <div class="log-dot" style="background:var(--orange);"></div>
+                  <div>
+                    <div class="text-sm font-semibold">Koneksi ditolak — Unknown Device</div>
+                    <div class="text-xs text-dim">Kemarin 22:14 · Password salah 3x</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Network Info -->
+            <div class="glass-card">
+              <div class="font-bold mb-16">Info Jaringan</div>
+              <div class="flex flex-col gap-10">
+                <div class="stat-bar">
+                  <span style="min-width:70px;font-size:12px;">Upload</span>
+                  <div class="stat-bar-track">
+                    <div class="stat-bar-fill" style="width:65%;"></div>
+                  </div>
+                  <span class="font-mono" style="min-width:60px;text-align:right;">7.8 Mbps</span>
+                </div>
+                <div class="stat-bar">
+                  <span style="min-width:70px;font-size:12px;">Download</span>
+                  <div class="stat-bar-track">
+                    <div class="stat-bar-fill" style="width:20%;background:linear-gradient(90deg,var(--cyan),var(--purple));"></div>
+                  </div>
+                  <span class="font-mono" style="min-width:60px;text-align:right;">0.3 Mbps</span>
+                </div>
+                <div class="stat-bar">
+                  <span style="min-width:70px;font-size:12px;">CPU Enc.</span>
+                  <div class="stat-bar-track">
+                    <div class="stat-bar-fill" style="width:18%;background:linear-gradient(90deg,var(--purple),var(--blue));"></div>
+                  </div>
+                  <span class="font-mono" style="min-width:60px;text-align:right;">18%</span>
+                </div>
+                <div class="divider" style="margin:4px 0;"></div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-dim">Protocol</span>
+                  <span class="font-mono text-blue">WebRTC / DTLS-SRTP</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-dim">Relay</span>
+                  <span class="font-mono text-green">P2P Direct ✓</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-dim">IP Region</span>
+                  <span class="font-mono">Jakarta, ID</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="host.js"></script>
+  <script src="electron/titlebar.js"></script>
+</body>
+</html>

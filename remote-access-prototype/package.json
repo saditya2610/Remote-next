@@ -1,0 +1,70 @@
+{
+  "name": "nexlink",
+  "version": "1.0.0",
+  "description": "NexLink — Multi-Platform Remote Access App",
+  "main": "electron/main.js",
+  "author": "NexLink Technologies",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder --win portable",
+    "build:installer": "electron-builder --win nsis",
+    "build:all": "electron-builder --win nsis portable"
+  },
+  "build": {
+    "appId": "com.nexlink.remoteaccess",
+    "productName": "NexLink",
+    "copyright": "Copyright © 2026 NexLink Technologies",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**/*",
+      "*.html",
+      "*.css",
+      "*.js",
+      "!node_modules",
+      "!dist"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "electron/icon.ico",
+      "requestedExecutionLevel": "asInvoker",
+      "signAndEditExecutable": false,
+      "signDlls": false
+    },
+    "portable": {
+      "artifactName": "NexLink-${version}-portable.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "NexLink-${version}-setup.exe",
+      "shortcutName": "NexLink"
+    },
+    "extraMetadata": {
+      "main": "electron/main.js"
+    }
+  },
+  "devDependencies": {
+    "electron": "^32.3.3",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "ws": "^8.21.3"
+  }
+}

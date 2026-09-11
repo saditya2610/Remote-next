@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>NexLink — Mobile Client</title>
+  <meta name="description" content="NexLink Mobile: Kontrol PC dari smartphone dengan mode trackpad dan toolbar keyboard.">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* ── Mobile Client Specific ── */
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      background: #000;
+    }
+
+    /* ─ Full Screen Layout ─ */
+    .mobile-client {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      background: #000;
+      position: relative;
+    }
+
+    /* ─ Top Bar ─ */
+    .mobile-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(7, 11, 23, 0.95);
+      border-bottom: 1px solid var(--glass-border);
+      gap: 8px;
+      z-index: 50;
+      flex-shrink: 0;
+    }
+    .mobile-topbar-left { display: flex; align-items: center; gap: 8px; }
+    .mobile-topbar-right { display: flex; align-items: center; gap: 6px; }
+    .topbar-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+
+    /* ─ Screen Area ─ */
+    .mobile-screen-area {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    /* Simulated Windows Desktop (mobile) */
+    .win-desktop-mobile {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: linear-gradient(135deg, #0d1b5e 0%, #1a0a4e 50%, #0a1a3a 100%);
+      overflow: hidden;
+      cursor: none;
+    }
+    .win-desktop-mobile::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 50% at 50% 60%, rgba(100,160,255,0.08), transparent);
+    }
+
+    /* Zoom wrapper */
+    .zoom-layer {
+      width: 100%;
+      height: 100%;
+      transform-origin: 0 0;
+      transition: transform 0.05s;
+      position: relative;
+    }
+
+    /* ─ Remote Cursor Mobile ─ */
+    .mobile-cursor {
+      position: absolute;
+      width: 16px; height: 16px;
+      pointer-events: none;
+      z-index: 50;
+      transform: translate(-2px, -2px);
+      transition: left 0.03s, top 0.03s;
+    }
+
+    /* Touch feedback ripple */
+    .touch-ripple {
+      position: absolute;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 2px solid rgba(45,126,255,0.9);
+      pointer-events: none;
+      animation: touch-ripple-anim 0.5s ease forwards;
+      transform: translate(-50%, -50%);
+      z-index: 60;
+    }
+    @keyframes touch-ripple-anim {
+      from { transform: translate(-50%,-50%) scale(0.3); opacity: 1; }
+      to   { transform: translate(-50%,-50%) scale(2.5); opacity: 0; }
+    }
+
+    /* Right-click ripple */
+    .touch-ripple-right {
+      border-color: rgba(255,149,0,0.9);
+    }
+
+    /* ─ Floating Mode Pill ─ */
+    .mode-pill {
+      position: fixed;
+      bottom: 100px;
+      right: 12px;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      background: rgba(13, 18, 36, 0.95);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      border-radius: 99px;
+      padding: 5px;
+      gap: 3px;
+      box-shadow: var(--shadow-card);
+      touch-action: none;
+    }
+    .mode-btn {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all var(--transition);
+      position: relative;
+    }
+    .mode-btn:active { transform: scale(0.88); }
+    .mode-btn.active {
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 2px 12px var(--blue-glow);
+    }
+    .mode-btn .mode-label {
+      position: absolute;
+      right: calc(100% + 8px);
+      background: rgba(13,18,36,0.9);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--text-primary);
+      display: none;
+    }
+
+    /* ─ Hold Click Button ─ */
+    .hold-click-btn {
+      position: fixed;
+      bottom: 100px;
+      left: 12px;
+      z-index: 200;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: rgba(13,18,36,0.92);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      color: var(--text-secondary);
+      font-size: 22px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: var(--shadow-card);
+      transition: all var(--transition);
+      touch-action: none;
+    }
+    .hold-click-btn.active {
+      background: var(--red-dim);
+      border-color: var(--red);
+      color: var(--red);
+      box-shadow: 0 0 20px rgba(255,69,69,0.3);
+    }
+
+    /* ─ Stats Overlay ─ */
+    .mobile-stats {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .mobile-stat-chip {
+      background: rgba(7,11,23,0.75);
+      border: 1px solid var(--glass-border);
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      color: var(--text-dim);
+      display: flex; gap: 4px; align-items: center;
+    }
+    .mobile-stat-chip .sv { color: var(--green); }
+    .mobile-stat-chip .sv.warn { color: var(--orange); }
+
+    /* ─ Keyboard Extension Bar ─ */
+    .mobile-kb-area {
+      flex-shrink: 0;
+      z-index: 150;
+    }
+    .kb-ext-bar {
+      background: rgba(10, 14, 28, 0.98);
+      border-top: 1px solid var(--glass-border);
+      padding: 5px 6px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .kb-ext-bar::-webkit-scrollbar { display: none; }
+
+    .kb-key {
+      flex-shrink: 0;
+      min-width: 38px;
+      height: 38px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 2px solid rgba(255,255,255,0.15);
+      border-radius: 7px;
+      font-size: 11px; font-weight: 700;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 0 8px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: all 0.1s;
+      touch-action: manipulation;
+    }
+    .kb-key:active {
+      background: var(--blue-dim);
+      border-color: var(--blue);
+      color: var(--blue);
+      transform: scale(0.9);
+      border-bottom-width: 1px;
+    }
+    .kb-key.pressed {
+      background: var(--blue-dim);
+      border-color: rgba(45,126,255,0.6);
+      color: var(--blue);
+    }
+    .kb-key-special {
+      background: rgba(45,126,255,0.1);
+      border-color: rgba(45,126,255,0.25);
+      color: #7AB8FF;
+    }
+    .kb-key-win {
+      background: rgba(0,212,255,0.08);
+      border-color: rgba(0,212,255,0.2);
+      color: var(--cyan);
+    }
+    .kb-separator { width: 1px; height: 28px; background: var(--glass-border); margin: 0 2px; flex-shrink: 0; }
+
+    /* ─ Virtual Trackpad Overlay ─ */
+    .trackpad-indicator {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.15);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* ─ Pinch Zoom Controls ─ */
+    .zoom-controls {
+      position: fixed;
+      top: 50%;
+      right: 12px;
+      transform: translateY(-50%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .zoom-btn {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      background: rgba(13,18,36,0.88);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(12px);
+      color: var(--text-secondary);
+      font-size: 18px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition: all var(--transition);
+    }
+    .zoom-btn:active { background: var(--blue-dim); color: var(--blue); transform: scale(0.9); }
+    .zoom-level {
+      height: 24px;
+      background: rgba(13,18,36,0.8);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; font-weight: 800;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Win desktop elements (compact for mobile) */
+    .m-win-desktop-icons {
+      position: absolute;
+      top: 12px; left: 8px;
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .m-win-icon {
+      width: 54px;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 4px; border-radius: 4px;
+      cursor: pointer;
+    }
+    .m-win-icon:active { background: rgba(0,120,215,0.3); }
+    .m-win-icon-img { font-size: 22px; }
+    .m-win-icon-label { font-size: 8px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); text-align: center; }
+
+    /* Mobile VS Code window */
+    .m-win-window {
+      position: absolute;
+      top: 40px; right: 8px;
+      width: calc(100% - 80px);
+      max-width: 340px;
+      background: #1e1e2e;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      overflow: hidden;
+    }
+    .m-win-titlebar {
+      height: 26px;
+      background: #2a2a3e;
+      display: flex; align-items: center; padding: 0 8px; gap: 5px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .m-win-btn { width: 9px; height: 9px; border-radius: 50%; border: none; cursor: pointer; }
+    .m-win-content {
+      background: #1e1e1e;
+      padding: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      line-height: 1.5;
+      height: 200px;
+      overflow: hidden;
+      color: #ccc;
+    }
+    .m-kw { color: #569cd6; }
+    .m-fn { color: #dcdcaa; }
+    .m-str { color: #ce9178; }
+    .m-cm { color: #6a9955; }
+    .m-num { color: #b5cea8; }
+
+    /* Mobile taskbar */
+    .m-win-taskbar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 34px;
+      background: rgba(15,15,25,0.96);
+      border-top: 1px solid rgba(255,255,255,0.05);
+      display: flex; align-items: center;
+      padding: 0 6px; gap: 3px;
+    }
+    .m-taskbar-start {
+      width: 28px; height: 26px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; cursor: pointer;
+    }
+    .m-taskbar-clock {
+      margin-left: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: rgba(255,255,255,0.45);
+      text-align: right;
+    }
+
+    /* Mode toast */
+    .mode-toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(13,18,36,0.9);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 16px 24px;
+      text-align: center;
+      z-index: 300;
+      pointer-events: none;
+    }
+    .mode-toast-icon { font-size: 36px; }
+    .mode-toast-text { font-size: 13px; font-weight: 700; margin-top: 6px; }
+    .mode-toast-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="mobile-client">
+
+    <!-- Top Bar -->
+    <div class="mobile-topbar">
+      <div class="mobile-topbar-left">
+        <a href="index.html" style="font-size:18px;text-decoration:none;">⚡</a>
+        <div>
+          <div style="font-size:11px;font-weight:700;line-height:1;">NexLink</div>
+          <div class="topbar-id" id="mobileConnID">487 293 156</div>
+        </div>
+        <div class="badge badge-online" style="font-size:9px;padding:2px 8px;">
+          <span class="dot dot-online" style="width:5px;height:5px;"></span>
+          Connected
+        </div>
+      </div>
+      <div class="mobile-topbar-right">
+        <button class="btn btn-ghost btn-icon" onclick="toggleMobileAudio(this)" style="width:30px;height:30px;font-size:14px;" title="Audio">🔊</button>
+        <button class="btn btn-ghost btn-icon" onclick="showMobileDisconnect()" style="width:30px;height:30px;font-size:14px;color:var(--red);" title="Disconnect">✕</button>
+      </div>
+    </div>
+
+    <!-- Screen Area -->
+    <div class="mobile-screen-area" id="mobileScreenArea"
+      ontouchstart="handleTouchStart(event)"
+      ontouchmove="handleTouchMove(event)"
+      ontouchend="handleTouchEnd(event)"
+      oncontextmenu="e => e.preventDefault()">
+
+      <!-- Simulated Windows Desktop (Mobile View) -->
+      <div class="win-desktop-mobile" id="mobileWinDesktop">
+        <div class="zoom-layer" id="zoomLayer">
+
+          <!-- Wallpaper effects -->
+          <div style="position:absolute;width:300px;height:200px;top:-50px;right:-50px;background:radial-gradient(rgba(100,80,255,0.15),transparent);filter:blur(40px);pointer-events:none;"></div>
+          <div style="position:absolute;width:200px;height:150px;bottom:60px;left:-40px;background:radial-gradient(rgba(0,150,255,0.12),transparent);filter:blur(30px);pointer-events:none;"></div>
+
+          <!-- Desktop Icons -->
+          <div class="m-win-desktop-icons">
+            <div class="m-win-icon">
+              <div class="m-win-icon-img">📁</div>
+              <div class="m-win-icon-label">Explorer</div>
+            </div>
+            <div class="m-win-icon">
+              <div class="m-win-icon-img">🌐</div>
+              <div class="m-win-icon-label">Chrome</div>
+            </div>
+            <div class="m-win-icon" style="background:rgba(0,120,215,0.3);">
+              <div class="m-win-icon-img">💻</div>
+              <div class="m-win-icon-label">VS Code</div>
+            </div>
+          </div>
+
+          <!-- VS Code Window (mobile) -->
+          <div class="m-win-window" id="mobileVSCode">
+            <div class="m-win-titlebar">
+              <div class="m-win-btn" style="background:#ff5f57;"></div>
+              <div class="m-win-btn" style="background:#febc2e;"></div>
+              <div class="m-win-btn" style="background:#28c840;"></div>
+              <div style="flex:1;text-align:center;font-size:9px;color:rgba(255,255,255,0.4);">main.js — VS Code</div>
+            </div>
+            <div class="m-win-content">
+              <div><span class="m-cm">// NexLink Core Engine</span></div>
+              <div><span class="m-kw">import</span> { WebRTCEngine } <span class="m-kw">from</span> <span class="m-str">'./webrtc'</span>;</div>
+              <div></div>
+              <div><span class="m-kw">const</span> <span class="m-fn">createSession</span> = <span class="m-kw">async</span> (config) => {</div>
+              <div>&nbsp;&nbsp;<span class="m-kw">const</span> engine = <span class="m-kw">new</span> <span class="m-fn">WebRTCEngine</span>(config);</div>
+              <div>&nbsp;&nbsp;<span class="m-kw">await</span> engine.<span class="m-fn">connect</span>();</div>
+              <div>&nbsp;&nbsp;engine.<span class="m-fn">startCapture</span>({</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;fps: <span class="m-num">60</span>,</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;codec: <span class="m-str">'H264'</span>,</div>
+              <div>&nbsp;&nbsp;&nbsp;&nbsp;bitrate: <span class="m-num">8_000_000</span>,</div>
+              <div>&nbsp;&nbsp;});</div>
+              <div>&nbsp;&nbsp;<span class="m-kw">return</span> engine;</div>
+              <div>};</div>
+              <div></div>
+              <div><span class="m-kw">export default</span> { <span class="m-fn">createSession</span> };</div>
+            </div>
+          </div>
+
+          <!-- Mobile Cursor -->
+          <div class="mobile-cursor" id="mobileCursor">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+              <path d="M3 2L17 10L9.5 11.5L6 18L3 2Z" fill="white" stroke="rgba(0,0,0,0.8)" stroke-width="1.5"/>
+            </svg>
+          </div>
+
+          <!-- Taskbar -->
+          <div class="m-win-taskbar">
+            <div class="m-taskbar-start">⊞</div>
+            <div style="width:22px;height:22px;border-radius:4px;background:rgba(0,120,215,0.2);border-bottom:1px solid #0078d4;display:flex;align-items:center;justify-content:center;font-size:12px;">💻</div>
+            <div style="width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;">🌐</div>
+            <div class="m-taskbar-clock" id="mobileTaskbarClock">
+              <div>14:06</div>
+              <div>9/11</div>
+            </div>
+          </div>
+
+          <!-- Trackpad mode label -->
+          <div class="trackpad-indicator" id="trackpadIndicator">Trackpad Mode</div>
+        </div><!-- /zoom-layer -->
+
+        <!-- Mobile Stats HUD -->
+        <div class="mobile-stats">
+          <div class="mobile-stat-chip">FPS <span class="sv" id="mStatFPS">60</span></div>
+          <div class="mobile-stat-chip">MS <span class="sv" id="mStatPing">12</span></div>
+          <div class="mobile-stat-chip" id="networkChip">4G <span class="sv">Good</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Keyboard Extension Bar -->
+    <div class="mobile-kb-area">
+      <div class="kb-ext-bar" id="kbExtBar">
+        <div class="kb-key kb-key-special" ontouchstart="pressKey('Escape', this)" ontouchend="releaseKey(this)">Esc</div>
+        <div class="kb-key kb-key-special" ontouchstart="pressKey('Control', this)" ontouchend="releaseModifier(this)">Ctrl</div>
+        <div class="kb-key kb-key-special" ontouchstart="pressKey('Alt', this)" ontouchend="releaseModifier(this)">Alt</div>
+        <div class="kb-key kb-key-special" ontouchstart="pressKey('Shift', this)" ontouchend="releaseModifier(this)">Shift</div>
+        <div class="kb-separator"></div>
+        <div class="kb-key kb-key-win" ontouchstart="pressKey('Meta', this)" ontouchend="releaseKey(this)">⊞ Win</div>
+        <div class="kb-key kb-key-special" ontouchstart="pressKey('Tab', this)" ontouchend="releaseKey(this)">Tab</div>
+        <div class="kb-key kb-key-special" ontouchstart="pressKey('Delete', this)" ontouchend="releaseKey(this)">Del</div>
+        <div class="kb-key kb-key-special" ontouchstart="pressKey('Backspace', this)" ontouchend="releaseKey(this)">⌫</div>
+        <div class="kb-separator"></div>
+        <div class="kb-key" ontouchstart="pressKey('ArrowLeft', this)" ontouchend="releaseKey(this)" style="font-size:14px;">←</div>
+        <div class="kb-key" ontouchstart="pressKey('ArrowUp', this)" ontouchend="releaseKey(this)" style="font-size:14px;">↑</div>
+        <div class="kb-key" ontouchstart="pressKey('ArrowDown', this)" ontouchend="releaseKey(this)" style="font-size:14px;">↓</div>
+        <div class="kb-key" ontouchstart="pressKey('ArrowRight', this)" ontouchend="releaseKey(this)" style="font-size:14px;">→</div>
+        <div class="kb-separator"></div>
+        <div class="kb-key" ontouchstart="pressCombo('Ctrl+Z', this)" ontouchend="releaseKey(this)">⌃Z</div>
+        <div class="kb-key" ontouchstart="pressCombo('Ctrl+C', this)" ontouchend="releaseKey(this)">⌃C</div>
+        <div class="kb-key" ontouchstart="pressCombo('Ctrl+V', this)" ontouchend="releaseKey(this)">⌃V</div>
+        <div class="kb-key" ontouchstart="pressCombo('Ctrl+A', this)" ontouchend="releaseKey(this)">⌃A</div>
+        <div class="kb-separator"></div>
+        <div class="kb-key" ontouchstart="pressKey('F1', this)" ontouchend="releaseKey(this)">F1</div>
+        <div class="kb-key" ontouchstart="pressKey('F2', this)" ontouchend="releaseKey(this)">F2</div>
+        <div class="kb-key" ontouchstart="pressKey('F4', this)" ontouchend="releaseKey(this)">F4</div>
+        <div class="kb-key" ontouchstart="pressKey('F5', this)" ontouchend="releaseKey(this)">F5</div>
+        <div class="kb-key" ontouchstart="pressKey('F11', this)" ontouchend="releaseKey(this)">F11</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Mode Pill -->
+  <div class="mode-pill" id="modePill">
+    <button class="mode-btn active" id="modeTrackpad" onclick="setTouchMode('trackpad')"
+      title="Trackpad Mode" ontouchend="setTouchMode('trackpad')">
+      🖱️
+    </button>
+    <button class="mode-btn" id="modeDirect" onclick="setTouchMode('direct')"
+      title="Direct Touch" ontouchend="setTouchMode('direct')">
+      👆
+    </button>
+    <button class="mode-btn" id="modeKeyboard" onclick="toggleKeyboard()"
+      title="Keyboard" ontouchend="toggleKeyboard()">
+      ⌨️
+    </button>
+  </div>
+
+  <!-- Hold Click Button -->
+  <button class="hold-click-btn" id="holdClickBtn"
+    ontouchstart="activateHoldClick(this)"
+    ontouchend="deactivateHoldClick(this)"
+    title="Hold Click (Drag)">
+    🖱️
+  </button>
+
+  <!-- Zoom Controls -->
+  <div class="zoom-controls">
+    <button class="zoom-btn" ontouchend="zoomIn()">+</button>
+    <div class="zoom-level" id="zoomLevelLabel">1×</div>
+    <button class="zoom-btn" ontouchend="zoomOut()">-</button>
+  </div>
+
+  <!-- Mode Toast -->
+  <div id="modeToast" class="mode-toast hidden">
+    <div class="mode-toast-icon" id="modeToastIcon">🖱️</div>
+    <div class="mode-toast-text" id="modeToastText">Trackpad Mode</div>
+    <div class="mode-toast-sub" id="modeToastSub">Geser 1 jari untuk kursor</div>
+  </div>
+
+  <!-- Disconnect Overlay -->
+  <div id="mobileDisconnectOverlay" class="hidden" style="
+    position:fixed;inset:0;z-index:1000;
+    background:rgba(7,11,23,0.9);backdrop-filter:blur(16px);
+    display:none;align-items:center;justify-content:center;
+  ">
+    <div style="background:var(--bg-elevated);border:1px solid var(--glass-border);border-radius:var(--radius-xl);padding:32px;text-align:center;max-width:300px;width:90%;box-shadow:var(--shadow-card);">
+      <div style="font-size:44px;margin-bottom:14px;">🔌</div>
+      <div class="text-lg font-bold mb-8">Putus Koneksi?</div>
+      <div class="text-sm text-secondary mb-20">Sesi remote akan diakhiri.</div>
+      <div class="flex gap-12" style="justify-content:center;">
+        <button class="btn btn-ghost" onclick="hideMobileDisconnect()">Batal</button>
+        <button class="btn btn-danger" onclick="window.location.href='index.html'">Putus</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="client-mobile.js"></script>
+  <script src="electron/titlebar.js"></script>
+</body>
+</html>

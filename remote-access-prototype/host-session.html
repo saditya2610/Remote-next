@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexLink — Host Session</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    html,body { height:100%; overflow:hidden; }
+    .page { display:flex; flex-direction:column; height:100vh; }
+
+    /* Source picker */
+    .source-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .source-card {
+      background: var(--glass-bg);
+      border: 2px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .source-card:hover { border-color: rgba(45,126,255,0.5); transform: translateY(-2px); }
+    .source-card.selected { border-color: var(--blue); box-shadow: 0 0 20px var(--blue-glow); }
+    .source-card img { width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; display:block; }
+    .source-card-label { padding: 8px 12px; font-size:12px; font-weight:600; }
+
+    /* Session active view */
+    .session-view {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      gap: 24px;
+      padding: 32px;
+    }
+    .session-id-card {
+      background: linear-gradient(135deg,rgba(45,126,255,0.1),rgba(0,212,255,0.07));
+      border: 1px solid rgba(45,126,255,0.3);
+      border-radius: var(--radius-xl);
+      padding: 32px 48px;
+      text-align: center;
+    }
+    .session-id-num {
+      font-family:'JetBrains Mono',monospace;
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      color: var(--text-primary);
+    }
+    .streaming-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 20px;
+      background: rgba(0,232,122,0.12);
+      border: 1px solid rgba(0,232,122,0.3);
+      border-radius: 99px;
+      color: var(--green);
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .streaming-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse-dot 1s ease-in-out infinite;
+    }
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .stat-chip {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-chip .sv { color: var(--green); }
+
+    /* Server URL bar */
+    .server-bar {
+      background: rgba(0,0,0,0.3);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+<div class="bg-mesh"></div>
+<div class="bg-grid"></div>
+<div class="page">
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="#" class="logo" onclick="goBack()">
+      <div class="logo-icon">⚡</div>
+      <div>
+        <div class="logo-text">NexLink</div>
+        <div class="logo-sub">Host Session</div>
+      </div>
+    </a>
+    <div class="flex items-center gap-12">
+      <div class="badge badge-online" id="statusBadge">
+        <span class="dot dot-connecting" id="statusDot"></span>
+        <span id="statusText">Mempersiapkan…</span>
+      </div>
+      <button class="btn btn-danger btn-sm" id="stopBtn" onclick="stopSession()" style="display:none;">⏹ Stop Sharing</button>
+      <button class="btn btn-ghost btn-sm" onclick="goBack()">← Kembali</button>
+    </div>
+  </nav>
+
+  <!-- Server URL bar -->
+  <div class="server-bar">
+    <span class="text-dim">Signaling Server:</span>
+    <input type="text" id="serverUrlInput" class="input" style="width:260px;padding:5px 10px;font-size:12px;"
+      value="ws://localhost:3000" placeholder="ws://IP_HOST:3000">
+    <button class="btn btn-ghost btn-sm" onclick="reconnectServer()">🔄 Reconnect</button>
+    <span class="text-dim" id="serverStatusText">Belum terhubung</span>
+  </div>
+
+  <!-- STEP 1: Source picker -->
+  <div id="stepPicker" class="main-content" style="max-width:800px;margin:0 auto;">
+    <div class="page-title">Pilih Layar untuk Dibagikan</div>
+    <div class="text-sm text-secondary mt-4">Pilih monitor atau jendela yang akan di-remote oleh klien</div>
+
+    <div class="source-grid" id="sourceGrid">
+      <div class="text-center text-secondary" style="grid-column:1/-1;padding:32px;">
+        <div class="spinner spinner-lg" style="margin:0 auto 16px;"></div>
+        Memuat daftar layar…
+      </div>
+    </div>
+
+    <div class="flex gap-12 mt-20">
+      <button class="btn btn-primary btn-lg" id="startBtn" onclick="startSharing()" disabled>
+        📡 Mulai Berbagi Layar
+      </button>
+      <button class="btn btn-ghost btn-lg" onclick="loadSources()">🔄 Refresh</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Active session -->
+  <div id="stepSession" class="session-view hidden">
+    <div class="session-id-card">
+      <div class="section-label">ID Perangkat Host</div>
+      <div class="session-id-num" id="sessionIdDisplay">— — —</div>
+      <div class="flex items-center justify-center gap-12 mt-16">
+        <div class="streaming-pill" id="streamingPill" style="display:none;">
+          <div class="streaming-dot"></div>
+          Streaming Aktif
+        </div>
+        <div class="badge badge-connecting" id="waitingBadge">
+          <span class="dot dot-connecting"></span>
+          Menunggu klien…
+        </div>
+      </div>
+      <div class="text-sm text-secondary mt-12" id="clientLabel"></div>
+    </div>
+
+    <div class="glass-card" style="max-width:440px;width:100%;">
+      <div class="section-label">Cara Connect dari Laptop Lain</div>
+      <div class="flex flex-col gap-8 mt-12 text-sm">
+        <div class="flex gap-8">
+          <span class="text-blue font-bold">1.</span>
+          <span>Buka NexLink di laptop lain</span>
+        </div>
+        <div class="flex gap-8">
+          <span class="text-blue font-bold">2.</span>
+          <div>
+            Set Server URL ke:
+            <div class="font-mono text-cyan mt-4" id="shareServerUrl" style="font-size:13px;"></div>
+          </div>
+        </div>
+        <div class="flex gap-8">
+          <span class="text-blue font-bold">3.</span>
+          <div>
+            Masukkan ID: <span class="font-mono text-primary font-bold" id="shareIdDisplay"></span>
+            dan Password: <span class="font-mono text-primary font-bold" id="sharePwDisplay"></span>
+          </div>
+        </div>
+        <div class="flex gap-8">
+          <span class="text-blue font-bold">4.</span>
+          <span>Klik Connect ✅</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row" id="sessionStatsRow">
+      <div class="stat-chip">FPS: <span class="sv" id="hStatFPS">—</span></div>
+      <div class="stat-chip">Latency: <span class="sv" id="hStatPing">—</span></div>
+      <div class="stat-chip">Klien: <span class="sv" id="hStatClient">offline</span></div>
+      <div class="stat-chip">Waktu: <span class="sv" id="hStatTime">00:00</span></div>
+    </div>
+
+    <div class="flex gap-12">
+      <button class="btn btn-danger btn-lg" onclick="stopSession()">⏹ Stop Sharing</button>
+      <button class="btn btn-ghost btn-lg" onclick="copyShareInfo()">📋 Copy Info Koneksi</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="host-session.js"></script>
+<script src="electron/titlebar.js"></script>
+</body>
+</html>
