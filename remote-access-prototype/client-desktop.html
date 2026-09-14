@@ -683,6 +683,27 @@
   <div id="shortcutToast" class="shortcut-toast hidden"></div>
 
   <script src="app.js"></script>
+  <script>
+    // ── TURN server config (free relay for cross-network WebRTC) ──
+    window.TURN_CONFIG = {
+      urls: [
+        'turn:openrelay.metered.ca:80',
+        'turn:openrelay.metered.ca:443',
+        'turns:openrelay.metered.ca:443'
+      ],
+      username: 'openrelayproject',
+      credential: 'openrelayproject'
+    };
+    // ── Auto-detect server URL (ngrok / LAN) ──────────────────────
+    // If opened via ngrok/public URL, default WS to that same host
+    (function() {
+      const loc = window.location;
+      if (loc.protocol === 'https:' || (loc.hostname !== 'localhost' && loc.hostname !== '127.0.0.1')) {
+        const wsProto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+        window.NEXLINK_DEFAULT_SERVER = wsProto + '//' + loc.host;
+      }
+    })();
+  </script>
   <script src="client-desktop-rtc.js"></script>
   <script src="client-desktop.js"></script>
   <script src="electron/titlebar.js"></script>

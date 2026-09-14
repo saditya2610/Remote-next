@@ -293,7 +293,7 @@
       <span class="nav-link">Features</span>
       <span class="nav-link">Security</span>
       <span class="nav-link">Pricing</span>
-      <a href="host.html" class="btn btn-ghost btn-sm">🖥️ Open Host</a>
+      <a href="javascript:void(0)" onclick="openHostDashboard()" class="btn btn-ghost btn-sm">🖥️ Open Host</a>
     </div>
   </nav>
 
@@ -412,7 +412,7 @@
           </div>
         </div>
 
-        <a href="host.html" class="btn btn-cyan btn-full btn-lg">
+        <a href="javascript:void(0)" onclick="openHostDashboard()" class="btn btn-cyan btn-full btn-lg">
           🛡️ &nbsp;Buka Host Dashboard
         </a>
       </div>
@@ -421,37 +421,8 @@
     <!-- Recent Connections -->
     <div class="recent-connections">
       <div class="section-label" style="text-align:center; margin-bottom:8px;">Koneksi Terakhir</div>
-      <div class="glass" style="border-radius: var(--radius-lg); overflow:hidden; padding: 4px;">
-        <div class="recent-item" onclick="quickConnect('My Home PC', '487 293 156')">
-          <div class="recent-item-icon">🏠</div>
-          <div class="recent-item-info">
-            <div class="recent-item-name">My Home PC</div>
-            <div class="recent-item-meta">487 293 156 · 2 jam yang lalu</div>
-          </div>
-          <span class="badge badge-online" style="font-size:10px;">
-            <span class="dot dot-online"></span> Online
-          </span>
-        </div>
-        <div class="recent-item" onclick="quickConnect('Office Workstation', '312 847 091')">
-          <div class="recent-item-icon">🏢</div>
-          <div class="recent-item-info">
-            <div class="recent-item-name">Office Workstation</div>
-            <div class="recent-item-meta">312 847 091 · Kemarin, 18:30</div>
-          </div>
-          <span class="badge badge-offline" style="font-size:10px;">
-            <span class="dot dot-offline"></span> Offline
-          </span>
-        </div>
-        <div class="recent-item" onclick="quickConnect('Gaming Rig', '905 614 228')">
-          <div class="recent-item-icon">🎮</div>
-          <div class="recent-item-info">
-            <div class="recent-item-name">Gaming Rig</div>
-            <div class="recent-item-meta">905 614 228 · 3 hari yang lalu</div>
-          </div>
-          <span class="badge badge-offline" style="font-size:10px;">
-            <span class="dot dot-offline"></span> Offline
-          </span>
-        </div>
+      <div class="glass" id="recentConnectionsContainer" style="border-radius: var(--radius-lg); overflow:hidden; padding: 4px;">
+        <!-- Rendered by JS -->
       </div>
     </div>
   </div>
@@ -474,11 +445,56 @@
 
   <script src="app.js"></script>
   <script>
-    const { formatIDInput, simulateConnect, copyToClipboard } = window.NexLink;
+    const { formatIDInput, simulateConnect, copyToClipboard, getMyID, getRecentConnections, addRecentConnection } = window.NexLink;
+
+    // ── Dynamic My ID ────────────────────────────────────────
+    const myID = getMyID();
+    document.getElementById('myIDDisplay').textContent = myID;
+    
+    // Replace hardcoded copy button
+    const copyBtn = document.querySelector('.badge-online').nextElementSibling;
+    if(copyBtn) {
+      copyBtn.setAttribute('onclick', `window.NexLink.copyToClipboard('${myID}', this)`);
+    }
+
+    // ── Render Recent Connections ────────────────────────────
+    function renderRecent() {
+      const recent = getRecentConnections();
+      const container = document.getElementById('recentConnectionsContainer');
+      if (recent.length === 0) {
+        container.innerHTML = '<div class="text-sm text-dim" style="text-align:center;padding:16px;">Belum ada riwayat koneksi</div>';
+        return;
+      }
+      container.innerHTML = recent.map(r => {
+        const timeAgo = new Date(r.time).toLocaleString('id-ID', { hour:'2-digit', minute:'2-digit', day:'numeric', month:'short' });
+        return `
+        <div class="recent-item" onclick="quickConnect('${r.name}', '${r.id}')">
+          <div class="recent-item-icon">💻</div>
+          <div class="recent-item-info">
+            <div class="recent-item-name">${r.name}</div>
+            <div class="recent-item-meta">${r.id} · ${timeAgo}</div>
+          </div>
+        </div>
+        `;
+      }).join('');
+    }
+    renderRecent();
 
     // ── ID Input Formatting ──────────────────────────────────
     const remoteIdInput = document.getElementById('remoteIdInput');
     remoteIdInput.addEventListener('input', () => formatIDInput(remoteIdInput));
+
+
+    // ── Validate Host Dashboard Access ───────────────────────
+    function openHostDashboard() {
+      if (window.electronAPI) {
+        // Safe to open because we are in the desktop app
+        window.electronAPI.navigate('host-session');
+      } else {
+        // We are in a web browser
+        alert("⚠️ AKSES DITOLAK\n\nFitur Host (membagikan layar PC) HANYA dapat dilakukan melalui Aplikasi Desktop NexLink (.exe) agar bisa mengontrol mouse/keyboard secara penuh.\n\nJika kamu membuka web ini untuk me-remote laptop lain, silakan masukkan ID di kolom 'Kontrol Perangkat' lalu klik Connect.");
+      }
+    }
 
     function clearIdInput() {
       remoteIdInput.value = '';
@@ -532,6 +548,9 @@
           progFill.style.width = `${Math.round((i+1)/total * 100)}%`;
         },
         () => {
+          // Save to recent
+          addRecentConnection(name || 'Remote PC', id);
+          
           // Redirect to desktop client view
           setTimeout(() => {
             window.location.href = 'client-desktop.html?id=' + encodeURIComponent(id) + '&name=' + encodeURIComponent(name || 'Remote PC');

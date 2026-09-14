@@ -70,7 +70,7 @@ function connectServer() {
     setStatus('Server terhubung', 'badge-online');
 
     // Register as host with current stored ID if exists
-    const savedId = localStorage.getItem('nexlink-host-id') || null;
+    const savedId = window.NexLink.getMyID();
     ws.send(JSON.stringify({ type: 'host-register', id: savedId }));
   };
 
@@ -104,7 +104,7 @@ async function handleSignal(msg) {
     case 'host-registered':
       hostId = msg.id;
       hostPw = msg.password;
-      localStorage.setItem('nexlink-host-id', hostId);
+      localStorage.setItem('nexlink_my_id', hostId.replace(/\s/g,''));
       el('sessionIdDisplay').textContent = hostId.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
       el('shareIdDisplay').textContent   = hostId.replace(/(\d{3})(\d{3})(\d{3})/, '$1 $2 $3');
       el('sharePwDisplay').textContent   = hostPw;

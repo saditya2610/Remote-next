@@ -141,8 +141,30 @@ function stopStatsTicker() {
 }
 
 // ─── Export (accessible globally) ───────────────────────────
+function getMyID() {
+  let id = localStorage.getItem('nexlink_my_id');
+  if (!id) {
+    id = generateID();
+    localStorage.setItem('nexlink_my_id', id);
+  }
+  return id;
+}
+
+function getRecentConnections() {
+  try { return JSON.parse(localStorage.getItem('nexlink_recent')) || []; } catch(e) { return []; }
+}
+
+function addRecentConnection(name, id) {
+  let recent = getRecentConnections();
+  recent = recent.filter(r => r.id !== id);
+  recent.unshift({ name: name || 'Remote PC', id, time: Date.now() });
+  if (recent.length > 5) recent = recent.slice(0, 5);
+  localStorage.setItem('nexlink_recent', JSON.stringify(recent));
+}
+
 window.NexLink = {
   AppState, formatDuration, generateID, generatePassword,
   copyToClipboard, simulateLatency, simulateFPS, animateCount,
   typeText, formatIDInput, simulateConnect, startStatsTicker, stopStatsTicker,
+  getMyID, getRecentConnections, addRecentConnection,
 };

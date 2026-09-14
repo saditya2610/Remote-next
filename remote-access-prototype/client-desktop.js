@@ -277,6 +277,16 @@ document.getElementById('winDesktop')?.addEventListener('click', () => {
 });
 
 // ─── Real WebRTC Connection ────────────────────────────────────
+
+// Auto-fill server URL if opened via ngrok or public URL
+document.addEventListener('DOMContentLoaded', function() {
+  const serverInput = document.getElementById('rtcServerUrl');
+  if (serverInput && window.NEXLINK_DEFAULT_SERVER) {
+    serverInput.value = window.NEXLINK_DEFAULT_SERVER;
+    serverInput.style.color = 'var(--green)';
+  }
+});
+
 function rtcConnect() {
   const serverUrl = document.getElementById('rtcServerUrl').value.trim();
   const hostId = document.getElementById('rtcHostId').value.trim().replace(/\s/g, '');
